@@ -1,0 +1,24 @@
+(Level 1 = initial calculations) 
+<<<Level 1>>>
+attack-delay: 1.5 sec
+AI-health: 100
+Player-health: 1500
+attack-damage(P): 15
+attack-damage(E): 1
+Number of AI: 5
+
+<<<Level 2>>>
+attack-delay: 1.5 sec
+AI-health: 300
+Player-health: 1500
+attack-damage(P): 15
+attack-damage(E): 5
+Numer of AI: 10
+
+<<<Level 3>>>
+attack-delay: 1.5 sec
+AI-health: 500
+Player-health: 1500
+attack-damage(P): 15
+attack-damage(E): 8
+Number of AI: 15 and a boss
