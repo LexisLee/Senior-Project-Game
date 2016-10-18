@@ -49,22 +49,24 @@ namespace UnityStandardAssets.Characters.ThirdPerson
 			m_Rigidbody.constraints = RigidbodyConstraints.FreezeRotationX | RigidbodyConstraints.FreezeRotationY | RigidbodyConstraints.FreezeRotationZ;
 			m_OrigGroundCheckDistance = m_GroundCheckDistance;
 
+			m_ForwardAmount = 0;
+
 
 		}
 
 
-		public void movePlayer(Vector3 move, bool crouch, bool jump, bool attack)
+		public void movePlayer(Vector3 movec, bool crouch, bool jump, bool attack)
 		{
 
 			// convert the world relative moveInput vector into a local-relative
 			// turn amount and forward amount required to head in the desired
 			// direction.
-			if (move.magnitude > 1f) move.Normalize();
-			move = transform.InverseTransformDirection(move);
+			if (movec.magnitude > 1f) movec.Normalize();
+			movec = transform.InverseTransformDirection(movec);
 			CheckGroundStatus();
-			move = Vector3.ProjectOnPlane(move, m_GroundNormal);
-			m_TurnAmount = Mathf.Atan2(move.x, move.z);
-			m_ForwardAmount = move.z;
+			movec = Vector3.ProjectOnPlane(movec, m_GroundNormal);
+			m_TurnAmount = Mathf.Atan2(movec.x, movec.z);
+			m_ForwardAmount = movec.z;
 
 			ApplyExtraTurnRotation();
 			SwingAtOpponet (attack);
@@ -84,7 +86,7 @@ namespace UnityStandardAssets.Characters.ThirdPerson
 			PreventStandingInLowHeadroom();
 
 			// send input and other state parameters to the animator
-			UpdateAnimator(move);
+			UpdateAnimator(movec);
 		}
 
 
@@ -99,16 +101,17 @@ namespace UnityStandardAssets.Characters.ThirdPerson
 			}
 			else
 			{
-				Ray crouchRay = new Ray(m_Rigidbody.position + Vector3.up * m_Capsule.radius * k_Half, Vector3.up);
-				float crouchRayLength = m_CapsuleHeight - m_Capsule.radius * k_Half;
-				if (Physics.SphereCast(crouchRay, m_Capsule.radius * k_Half, crouchRayLength, ~0, QueryTriggerInteraction.Ignore))
-				{
-					m_Crouching = true;
-					return;
+				if (this.gameObject.tag == "user") {
+					Ray crouchRay = new Ray (m_Rigidbody.position + Vector3.up * m_Capsule.radius * k_Half, Vector3.up);
+					float crouchRayLength = m_CapsuleHeight - m_Capsule.radius * k_Half;
+					if (Physics.SphereCast (crouchRay, m_Capsule.radius * k_Half, crouchRayLength, ~0, QueryTriggerInteraction.Ignore)) {
+						m_Crouching = true;
+						return;
+					}
+					m_Capsule.height = m_CapsuleHeight;
+					m_Capsule.center = m_CapsuleCenter;
+					m_Crouching = false;
 				}
-				m_Capsule.height = m_CapsuleHeight;
-				m_Capsule.center = m_CapsuleCenter;
-				m_Crouching = false;
 			}
 		}
 
@@ -117,52 +120,51 @@ namespace UnityStandardAssets.Characters.ThirdPerson
 			// prevent standing up in crouch-only zones
 			if (!m_Crouching)
 			{
-				Ray crouchRay = new Ray(m_Rigidbody.position + Vector3.up * m_Capsule.radius * k_Half, Vector3.up);
-				float crouchRayLength = m_CapsuleHeight - m_Capsule.radius * k_Half;
-				if (Physics.SphereCast(crouchRay, m_Capsule.radius * k_Half, crouchRayLength, ~0, QueryTriggerInteraction.Ignore))
-				{
-					m_Crouching = true;
+				if (this.gameObject.tag == "user") {
+					Ray crouchRay = new Ray (m_Rigidbody.position + Vector3.up * m_Capsule.radius * k_Half, Vector3.up);
+					float crouchRayLength = m_CapsuleHeight - m_Capsule.radius * k_Half;
+					if (Physics.SphereCast (crouchRay, m_Capsule.radius * k_Half, crouchRayLength, ~0, QueryTriggerInteraction.Ignore)) {
+						m_Crouching = true;
+					}
 				}
 			}
 		}
 
 		void UpdateAnimator(Vector3 move)
 		{
+			//Debug.Log (m_Animator);
 
+			if (m_Animator != null) {
+		
+				// update the animator parameters
+				m_Animator.SetFloat ("Forward", m_ForwardAmount, 0.1f, Time.deltaTime);
+				m_Animator.SetFloat ("Turn", m_TurnAmount, 0.1f, Time.deltaTime);
+				m_Animator.SetBool ("Crouch", m_Crouching);
+				m_Animator.SetBool ("OnGround", m_IsGrounded);
 
-			// update the animator parameters
-			m_Animator.SetFloat("Forward", m_ForwardAmount, 0.1f, Time.deltaTime);
-			m_Animator.SetFloat("Turn", m_TurnAmount, 0.1f, Time.deltaTime);
-			m_Animator.SetBool("Crouch", m_Crouching);
-			m_Animator.SetBool("OnGround", m_IsGrounded);
+				if (!m_IsGrounded) {
+					m_Animator.SetFloat ("Jump", m_Rigidbody.velocity.y);
+				}
 
-			if (!m_IsGrounded)
-			{
-				m_Animator.SetFloat("Jump", m_Rigidbody.velocity.y);
-			}
+				// calculate which leg is behind, so as to leave that leg trailing in the jump animation
+				// (This code is reliant on the specific run cycle offset in our animations,
+				// and assumes one leg passes the other at the normalized clip times of 0.0 and 0.5)
+				float runCycle =
+					Mathf.Repeat (
+						m_Animator.GetCurrentAnimatorStateInfo (0).normalizedTime + m_RunCycleLegOffset, 1);
+				float jumpLeg = (runCycle < k_Half ? 1 : -1) * m_ForwardAmount;
+				if (m_IsGrounded) {
+					m_Animator.SetFloat ("JumpLeg", jumpLeg);
+				}
 
-			// calculate which leg is behind, so as to leave that leg trailing in the jump animation
-			// (This code is reliant on the specific run cycle offset in our animations,
-			// and assumes one leg passes the other at the normalized clip times of 0.0 and 0.5)
-			float runCycle =
-				Mathf.Repeat(
-					m_Animator.GetCurrentAnimatorStateInfo(0).normalizedTime + m_RunCycleLegOffset, 1);
-			float jumpLeg = (runCycle < k_Half ? 1 : -1) * m_ForwardAmount;
-			if (m_IsGrounded)
-			{
-				m_Animator.SetFloat("JumpLeg", jumpLeg);
-			}
-
-			// the anim speed multiplier allows the overall speed of walking/running to be tweaked in the inspector,
-			// which affects the movement speed because of the root motion.
-			if (m_IsGrounded && move.magnitude > 0)
-			{
-				m_Animator.speed = m_AnimSpeedMultiplier;
-			}
-			else
-			{
-				// don't use that while airborne
-				m_Animator.speed = 1;
+				// the anim speed multiplier allows the overall speed of walking/running to be tweaked in the inspector,
+				// which affects the movement speed because of the root motion.
+				if (m_IsGrounded && move.magnitude > 0) {
+					m_Animator.speed = m_AnimSpeedMultiplier;
+				} else {
+					// don't use that while airborne
+					m_Animator.speed = 1;
+				}
 			}
 				
 
@@ -236,13 +238,15 @@ namespace UnityStandardAssets.Characters.ThirdPerson
 			{
 				m_GroundNormal = hitInfo.normal;
 				m_IsGrounded = true;
-				m_Animator.applyRootMotion = true;
+				if (this.gameObject.tag == "user")
+					m_Animator.applyRootMotion = true;
 			}
 			else
 			{
 				m_IsGrounded = false;
 				m_GroundNormal = Vector3.up;
-				m_Animator.applyRootMotion = false;
+				if (this.gameObject.tag == "user")
+					m_Animator.applyRootMotion = false;
 			}
 		}
 			

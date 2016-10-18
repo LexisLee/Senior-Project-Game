@@ -52,7 +52,7 @@ namespace UnityStandardAssets.Characters.ThirdPerson
             float h = CrossPlatformInputManager.GetAxis("Horizontal");
             float v = CrossPlatformInputManager.GetAxis("Vertical");
             bool m_crouch = Input.GetKey(KeyCode.C);
-			bool m_attack = Input.GetKey(KeyCode.Mouse0);
+			bool m_attack = Input.GetKey(KeyCode.KeypadEnter);
 
             // calculate move direction to pass to character
 			if (m_Cam != null) {

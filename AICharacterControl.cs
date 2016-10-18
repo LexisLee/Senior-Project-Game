@@ -5,6 +5,7 @@ namespace UnityStandardAssets.Characters.ThirdPerson
 {
     [RequireComponent(typeof (NavMeshAgent))]
     [RequireComponent(typeof (ThirdPersonCharacter))]
+	[RequireComponent(typeof (EnemyAttack))]
 
     public class AICharacterControl : MonoBehaviour
     {
@@ -12,7 +13,9 @@ namespace UnityStandardAssets.Characters.ThirdPerson
         public ThirdPersonCharacter character { get; private set; } // the character we are controlling
         public Transform target;                                    // target to aim for
 		private NavMeshPath path;
-
+		private float timer;
+		EnemyAttack hitEnemy;
+		GameObject hand;
 
         private void Start()
         {
@@ -23,10 +26,16 @@ namespace UnityStandardAssets.Characters.ThirdPerson
 
 	        agent.updateRotation = false;
 	        agent.updatePosition = true;
+
+			timer = 2f;
+
+			hand = GameObject.Find ("HitPlayer");
         }
 
         private void Update()
 		{
+			if (hand != null)
+				hitEnemy = (EnemyAttack)hand.GetComponent(typeof(EnemyAttack));
 
 			// test to make sure the object is on the nav mesh
 			if (agent.isOnNavMesh) {
@@ -40,7 +49,13 @@ namespace UnityStandardAssets.Characters.ThirdPerson
 					}
 						
 					if (agent.remainingDistance <= agent.stoppingDistance) {
-						character.movePlayer (agent.velocity, false, false, true);
+						transform.LookAt (target.transform.position);
+						timer -= Time.deltaTime;
+						if (timer < 0) { 
+							character.movePlayer (agent.velocity, false, false, true);
+							hitEnemy.SwungAtUser (true);
+							timer = 1.5f;
+						}
 					}
 				}
 			} 
